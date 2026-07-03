@@ -13,26 +13,36 @@ import {
 } from "react";
 import * as THREE from "three";
 
-import { playDeathJumpScareAudio } from "~/app/game/_components/death-jumpscare-audio";
+import {
+  unlockJumpScareAudio,
+} from "~/app/game/_components/death-jumpscare-audio";
 import { DemogorgonModel } from "~/app/game/_components/demogorgon-model";
 import { useGameState } from "~/app/game/_components/game-state";
 
 /** How long the full-screen scare overlay stays visible before the game-over UI. */
 const SCARE_DURATION_MS = 2200;
 
+/** Camera distance — pulled back so the full head reads on screen. */
+const SCARE_CAMERA_POSITION: [number, number, number] = [0, 1.52, 2.15];
+const SCARE_LOOK_AT: [number, number, number] = [0, 1.42, 0];
+const SCARE_FOV = 52;
+const SCARE_MODEL_SCALE = 1.35;
+/** Vertical offset — shifts the Demogorgon down for better face framing. */
+const SCARE_MODEL_Y_OFFSET = -0.38;
+
 const DeathJumpScareContext = createContext(false);
 
 /**
- * Positions the scare camera close to the Demogorgon face for a fullscreen close-up.
+ * Positions the scare camera for a tight but readable Demogorgon head shot.
  */
 function ScareFaceCamera() {
   const { camera } = useThree();
 
   useLayoutEffect(() => {
-    camera.position.set(0, 1.42, 0.72);
-    camera.lookAt(0, 1.55, 0);
+    camera.position.set(...SCARE_CAMERA_POSITION);
+    camera.lookAt(...SCARE_LOOK_AT);
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = 32;
+      camera.fov = SCARE_FOV;
       camera.updateProjectionMatrix();
     }
   }, [camera]);
@@ -52,7 +62,7 @@ function DemogorgonFaceScene() {
       <pointLight position={[0.25, 1.85, 0.45]} intensity={7} color="#ff2a10" />
       <pointLight position={[-0.55, 1.35, 0.35]} intensity={3.5} color="#aa0a00" />
       <pointLight position={[0, 0.6, 0.8]} intensity={1.2} color="#330000" />
-      <group position={[0, -0.15, 0]} scale={2.15}>
+      <group position={[0, SCARE_MODEL_Y_OFFSET, 0]} scale={SCARE_MODEL_SCALE}>
         <DemogorgonModel healthRatio={1} emissiveMin={0.75} emissiveMax={1.35} />
       </group>
     </>
@@ -78,7 +88,6 @@ function useDeathJumpScareActive(isGameOver: boolean, isVictory: boolean): boole
       }
 
       setIsActive(true);
-      void playDeathJumpScareAudio();
 
       const timer = setTimeout(() => setIsActive(false), SCARE_DURATION_MS);
       wasGameOverRef.current = true;
@@ -113,11 +122,11 @@ function DeathJumpScareVisual() {
           100% { opacity: 0; background: rgba(0, 0, 0, 1); }
         }
         @keyframes death-scare-shake {
-          0%, 100% { transform: translate(0, 0) scale(1.12); }
-          20% { transform: translate(-10px, 6px) scale(1.14); }
-          40% { transform: translate(12px, -8px) scale(1.1); }
-          60% { transform: translate(-8px, -5px) scale(1.13); }
-          80% { transform: translate(6px, 8px) scale(1.11); }
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          20% { transform: translate(-8px, 5px) scale(1.02); }
+          40% { transform: translate(10px, -6px) scale(1); }
+          60% { transform: translate(-6px, -4px) scale(1.01); }
+          80% { transform: translate(5px, 6px) scale(1); }
         }
         .death-scare-flash {
           animation: death-scare-flash 0.35s ease-out forwards;
@@ -130,11 +139,16 @@ function DeathJumpScareVisual() {
       <div className="death-scare-flash absolute inset-0" />
 
       <div className="absolute inset-0 bg-black">
-        <div className="death-scare-face absolute inset-[-8%]">
+        <div className="death-scare-face absolute inset-0">
           <Canvas
             gl={{ antialias: true }}
             dpr={[1, 2]}
-            camera={{ fov: 32, near: 0.05, far: 20, position: [0, 1.42, 0.72] }}
+            camera={{
+              fov: SCARE_FOV,
+              near: 0.05,
+              far: 20,
+              position: SCARE_CAMERA_POSITION,
+            }}
           >
             <Suspense fallback={null}>
               <DemogorgonFaceScene />
@@ -157,6 +171,21 @@ function DeathJumpScareVisual() {
 export function DeathJumpScareProvider({ children }: { children: ReactNode }) {
   const { isGameOver, isVictory } = useGameState();
   const isActive = useDeathJumpScareActive(isGameOver, isVictory);
+
+  useEffect(() => {
+    /**
+     * Unlocks scare audio on any gameplay click so death SFX is allowed by autoplay policy.
+     */
+    const onUserGesture = () => unlockJumpScareAudio();
+
+    window.addEventListener("pointerdown", onUserGesture, { capture: true });
+    window.addEventListener("keydown", onUserGesture, { capture: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", onUserGesture, { capture: true });
+      window.removeEventListener("keydown", onUserGesture, { capture: true });
+    };
+  }, []);
 
   return (
     <DeathJumpScareContext.Provider value={isActive}>

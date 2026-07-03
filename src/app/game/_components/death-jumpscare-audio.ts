@@ -1,94 +1,180 @@
-/** Shared audio context unlocked after the player's first click-to-play gesture. */
-let sharedAudioContext: AudioContext | null = null;
+"use client";
+
+/** Public path to the committed jump-scare sound effect. */
+export const JUMPSCARE_AUDIO_SRC = "/sounds/jumpscare.wav";
+
+/** ID of the preload `<audio>` element rendered in the game shell. */
+export const JUMPSCARE_AUDIO_ELEMENT_ID = "everdoomie-jumpscare-audio";
+
+/** DOM-attached audio element primed during the first user gesture. */
+let scareAudioElement: HTMLAudioElement | null = null;
+
+/** Whether a user gesture successfully unlocked HTML audio playback. */
+let isAudioUnlocked = false;
+
+/** Prevents double-firing the scare sound on the same death frame. */
+let lastDeathPlayAt = 0;
 
 /**
- * Returns a resumed Web Audio context, creating one on first use.
+ * Logs jump-scare audio diagnostics in development builds only.
  *
- * Call from gameplay after user interaction so browser autoplay policies allow sound.
+ * @param message - Short description of the audio event.
+ * @param detail - Optional structured detail payload.
  */
-function getAudioContext(): AudioContext {
-  sharedAudioContext ??= new AudioContext();
-  void sharedAudioContext.resume();
-  return sharedAudioContext;
+function logJumpScareAudio(message: string, detail?: unknown): void {
+  if (process.env.NODE_ENV !== "development") return;
+  if (detail === undefined) {
+    console.log(`[everdoomie jumpscare] ${message}`);
+    return;
+  }
+  console.log(`[everdoomie jumpscare] ${message}`, detail);
 }
 
 /**
- * Builds a short burst of harsh brown noise for the death jump scare.
+ * Creates (once) and appends the scare audio element to the document body.
  *
- * @param ctx - Active audio context.
- * @param durationSec - Length of the noise buffer in seconds.
+ * Browsers often block playback for detached `new Audio()` instances — keeping
+ * the element in the DOM is required for reliable death playback.
  */
-function createScareNoiseBuffer(ctx: AudioContext, durationSec: number): AudioBuffer {
-  const sampleCount = Math.floor(ctx.sampleRate * durationSec);
-  const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
-  const channel = buffer.getChannelData(0);
-
-  let lastSample = 0;
-  for (let index = 0; index < sampleCount; index += 1) {
-    const white = Math.random() * 2 - 1;
-    lastSample = (lastSample + 0.02 * white) / 1.02;
-    channel[index] = lastSample * 4.2;
+function getScareAudioElement(): HTMLAudioElement {
+  if (typeof document === "undefined") {
+    throw new Error("Jump-scare audio requires a browser environment.");
   }
 
-  return buffer;
+  if (scareAudioElement) return scareAudioElement;
+
+  const preloaded = document.getElementById(JUMPSCARE_AUDIO_ELEMENT_ID);
+  if (preloaded instanceof HTMLAudioElement) {
+    scareAudioElement = preloaded;
+    logJumpScareAudio("using preloaded DOM audio element");
+    return preloaded;
+  }
+
+  scareAudioElement = document.createElement("audio");
+  scareAudioElement.src = JUMPSCARE_AUDIO_SRC;
+  scareAudioElement.preload = "auto";
+  scareAudioElement.volume = 1;
+  scareAudioElement.style.display = "none";
+  scareAudioElement.setAttribute("aria-hidden", "true");
+  document.body.appendChild(scareAudioElement);
+
+  logJumpScareAudio("audio element created and appended to DOM");
+  return scareAudioElement;
 }
 
 /**
- * Plays a loud, jarring jump-scare sound once when the player dies.
+ * Unlocks jump-scare audio during a user gesture (click, pointer lock, shot).
  *
- * Uses synthesized noise and a descending screech — no external audio file required.
- * Safe to call multiple times; each death triggers a fresh one-shot burst.
+ * Runs a near-silent play/pause on the DOM audio element so death playback is
+ * allowed later even outside a gesture call stack.
  */
-export async function playDeathJumpScareAudio(): Promise<void> {
-  const ctx = getAudioContext();
-  await ctx.resume();
+export function unlockJumpScareAudio(): void {
+  if (typeof document === "undefined") return;
 
-  const durationSec = 1.85;
-  const startTime = ctx.currentTime;
+  const audio = getScareAudioElement();
 
-  const masterGain = ctx.createGain();
-  masterGain.gain.setValueAtTime(0, startTime);
-  masterGain.gain.linearRampToValueAtTime(0.92, startTime + 0.015);
-  masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + durationSec);
-  masterGain.connect(ctx.destination);
-
-  const noiseSource = ctx.createBufferSource();
-  noiseSource.buffer = createScareNoiseBuffer(ctx, durationSec);
-
-  const bandpass = ctx.createBiquadFilter();
-  bandpass.type = "bandpass";
-  bandpass.frequency.setValueAtTime(920, startTime);
-  bandpass.frequency.exponentialRampToValueAtTime(280, startTime + durationSec);
-  bandpass.Q.value = 0.65;
-
-  const distortion = ctx.createWaveShaper();
-  const curve = new Float32Array(256);
-  for (let index = 0; index < 256; index += 1) {
-    const normalized = (index * 2) / 255 - 1;
-    curve[index] = Math.tanh(normalized * 4.5);
+  if (audio.readyState < HTMLMediaElement.HAVE_METADATA) {
+    audio.load();
   }
-  distortion.curve = curve;
 
-  noiseSource.connect(bandpass);
-  bandpass.connect(distortion);
-  distortion.connect(masterGain);
+  audio.volume = 0.02;
+  audio.currentTime = 0;
 
-  const screech = ctx.createOscillator();
-  screech.type = "sawtooth";
-  screech.frequency.setValueAtTime(240, startTime);
-  screech.frequency.exponentialRampToValueAtTime(38, startTime + 0.55);
-  screech.frequency.setValueAtTime(190, startTime + 0.62);
-  screech.frequency.exponentialRampToValueAtTime(28, startTime + 1.35);
+  void audio
+    .play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 1;
+      isAudioUnlocked = true;
+      logJumpScareAudio("audio unlocked successfully", {
+        readyState: audio.readyState,
+      });
+    })
+    .catch((error: unknown) => {
+      logJumpScareAudio("audio unlock rejected", error);
+    });
+}
 
-  const screechGain = ctx.createGain();
-  screechGain.gain.setValueAtTime(0.55, startTime);
-  screechGain.gain.exponentialRampToValueAtTime(0.001, startTime + durationSec);
+/**
+ * Plays a loud jump-scare burst from the DOM audio element.
+ *
+ * @param audio - Prepared scare audio element.
+ */
+function playScareFromElement(audio: HTMLAudioElement): void {
+  audio.volume = 1;
+  audio.currentTime = 0;
 
-  screech.connect(screechGain);
-  screechGain.connect(masterGain);
+  logJumpScareAudio("play() called on death", {
+    unlocked: isAudioUnlocked,
+    readyState: audio.readyState,
+    paused: audio.paused,
+  });
 
-  noiseSource.start(startTime);
-  noiseSource.stop(startTime + durationSec);
-  screech.start(startTime);
-  screech.stop(startTime + durationSec);
+  void audio
+    .play()
+    .then(() => {
+      logJumpScareAudio("play() succeeded");
+    })
+    .catch((error: unknown) => {
+      logJumpScareAudio("play() rejected — trying fallback clone", error);
+
+      const fallback = document.createElement("audio");
+      fallback.src = JUMPSCARE_AUDIO_SRC;
+      fallback.volume = 1;
+      fallback.style.display = "none";
+      fallback.setAttribute("aria-hidden", "true");
+      document.body.appendChild(fallback);
+
+      void fallback
+        .play()
+        .then(() => logJumpScareAudio("fallback clone play() succeeded"))
+        .catch((fallbackError: unknown) => {
+          logJumpScareAudio("fallback clone play() rejected", fallbackError);
+        })
+        .finally(() => {
+          fallback.remove();
+        });
+    });
+}
+
+/**
+ * Plays the death jump-scare sound effect immediately.
+ *
+ * Call synchronously when the player dies (e.g. from `damagePlayer`). Safe to
+ * call once per death; duplicate calls within 500ms are ignored.
+ */
+export function playDeathJumpScareAudio(): void {
+  if (typeof document === "undefined") return;
+
+  const now = performance.now();
+  if (now - lastDeathPlayAt < 500) return;
+  lastDeathPlayAt = now;
+
+  const primary = getScareAudioElement();
+  playScareFromElement(primary);
+
+  // Second clone layered for extra loudness — staggered slightly.
+  const booster = document.createElement("audio");
+  booster.src = JUMPSCARE_AUDIO_SRC;
+  booster.volume = 1;
+  booster.style.display = "none";
+  booster.setAttribute("aria-hidden", "true");
+  document.body.appendChild(booster);
+
+  void booster
+    .play()
+    .catch((error: unknown) => {
+      logJumpScareAudio("booster clone play() rejected", error);
+    })
+    .finally(() => {
+      window.setTimeout(() => booster.remove(), 3000);
+    });
+}
+
+/**
+ * Resets death-play deduplication when a new run starts.
+ */
+export function resetJumpScareAudioSession(): void {
+  lastDeathPlayAt = 0;
 }

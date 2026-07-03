@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  playDeathJumpScareAudio,
+  resetJumpScareAudioSession,
+} from "~/app/game/_components/death-jumpscare-audio";
 import { useGameSettings } from "~/app/game/_components/game-settings-provider";
 import {
   AMMO_CACHE_AMOUNT,
@@ -133,6 +137,9 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
   const [isGameOver, setIsGameOver] = useState(false);
   const [isVictory, setIsVictory] = useState(false);
   const [sessionId, setSessionId] = useState(0);
+  const healthRef = useRef(INITIAL_HEALTH);
+
+  healthRef.current = health;
 
   const combatStats = useMemo(
     () => computePlayerCombatStats(activeEffects),
@@ -283,13 +290,18 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
   );
 
   const damagePlayer = useCallback((amount: number) => {
-    setHealth((prev) => {
-      const next = Math.max(0, prev - amount);
-      if (next <= 0) {
-        setIsGameOver(true);
+    const previousHealth = healthRef.current;
+    const nextHealth = Math.max(0, previousHealth - amount);
+    healthRef.current = nextHealth;
+
+    setHealth(nextHealth);
+
+    if (nextHealth <= 0) {
+      setIsGameOver(true);
+      if (previousHealth > 0) {
+        playDeathJumpScareAudio();
       }
-      return next;
-    });
+    }
   }, []);
 
   const consumeAmmo = useCallback(() => {
@@ -323,6 +335,8 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
 
     emergencyAmmoPendingRef.current = false;
     dotAccumulatorRef.current = 0;
+    healthRef.current = INITIAL_HEALTH;
+    resetJumpScareAudioSession();
     setHealth(INITIAL_HEALTH);
     setAmmo(INITIAL_AMMO);
     setKills(0);

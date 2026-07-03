@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useIsDeathJumpScareActive } from "~/app/game/_components/death-jumpscare";
+import { unlockJumpScareAudio } from "~/app/game/_components/death-jumpscare-audio";
 import { useGameSettings } from "~/app/game/_components/game-settings-provider";
 import { useGameState } from "~/app/game/_components/game-state";
 import { getEffectSecondsRemaining } from "~/app/game/_components/status-effects";
@@ -27,9 +28,11 @@ export function Hud() {
     isGameOver,
     isVictory,
     restart,
+    setIsLocked,
   } = useGameState();
-  const { isSettingsOpen } = useGameSettings();
+  const { isSettingsOpen, settings } = useGameSettings();
   const isDeathScareActive = useIsDeathJumpScareActive();
+  const isAndroid = settings.platform === "android";
 
   const [now, setNow] = useState(() => performance.now());
 
@@ -39,6 +42,14 @@ export function Hud() {
     const interval = setInterval(() => setNow(performance.now()), 250);
     return () => clearInterval(interval);
   }, [activeEffects.length, isLocked]);
+
+  /**
+   * Starts Android gameplay without pointer lock.
+   */
+  const handleAndroidStart = () => {
+    unlockJumpScareAudio();
+    setIsLocked(true);
+  };
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 font-mono text-white select-none">
@@ -51,14 +62,34 @@ export function Hud() {
             <p className="mb-6 text-lg text-gray-300">
               Survive {TOTAL_WAVES} waves of demons
             </p>
-            <div className="space-y-1 text-sm text-gray-400">
-              <p>WASD — Move</p>
-              <p>Mouse — Look</p>
-              <p>Click — Shoot</p>
-              <p>Escape — Settings</p>
-              <p>Collect orbs for powerful buffs — avoid cursed ones</p>
-              <p>Run dry on ammo and an emergency crate will drop</p>
-            </div>
+
+            {isAndroid ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleAndroidStart}
+                  className="mb-6 rounded border-2 border-red-600 bg-red-900/50 px-8 py-3 text-lg font-bold tracking-wider text-red-300 transition hover:bg-red-800/70"
+                >
+                  TAP TO START
+                </button>
+                <div className="space-y-1 text-sm text-gray-400">
+                  <p>Left joystick — Move</p>
+                  <p>Right side — Drag to look</p>
+                  <p>FIRE button — Shoot</p>
+                  <p>⚙ — Settings</p>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-1 text-sm text-gray-400">
+                <p>Click the screen to begin</p>
+                <p>WASD — Move</p>
+                <p>Mouse — Look</p>
+                <p>Click — Shoot</p>
+                <p>Escape — Settings</p>
+                <p>Collect orbs for powerful buffs — avoid cursed ones</p>
+                <p>Run dry on ammo and an emergency crate will drop</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -98,7 +129,7 @@ export function Hud() {
           </div>
 
           {activeEffects.length > 0 && (
-            <div className="absolute top-4 right-4 min-w-48 space-y-1.5 text-xs">
+            <div className={`absolute top-4 min-w-48 space-y-1.5 text-xs ${isAndroid ? "right-20" : "right-4"}`}>
               <p className="text-[10px] tracking-widest text-gray-500 uppercase">
                 Active Effects
               </p>
@@ -122,12 +153,14 @@ export function Hud() {
             </div>
           )}
 
-          <div className="absolute right-4 bottom-4 max-w-xs text-right text-[10px] text-gray-500">
-            <p className="text-green-500">Green/cyan — buffs & heals</p>
-            <p className="text-purple-400">Purple/gray — curses & jams</p>
-            <p className="text-yellow-400">Gold crate — emergency ammo</p>
-            <p className="mt-2 text-gray-600">Esc — settings</p>
-          </div>
+          {!isAndroid && (
+            <div className="absolute right-4 bottom-4 max-w-xs text-right text-[10px] text-gray-500">
+              <p className="text-green-500">Green/cyan — buffs & heals</p>
+              <p className="text-purple-400">Purple/gray — curses & jams</p>
+              <p className="text-yellow-400">Gold crate — emergency ammo</p>
+              <p className="mt-2 text-gray-600">Esc — settings</p>
+            </div>
+          )}
 
           {waveMessage && (
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 text-center">
@@ -150,7 +183,7 @@ export function Hud() {
           )}
 
           {ammo === 0 && (
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-center">
+            <div className={`absolute left-1/2 -translate-x-1/2 text-center ${isAndroid ? "bottom-36" : "bottom-24"}`}>
               <p className="animate-pulse text-sm font-bold tracking-wider text-yellow-300">
                 OUT OF AMMO — FIND THE GOLD CRATE
               </p>

@@ -21,6 +21,7 @@ import {
   type ComputedLighting,
   type GameSettings,
   type MapSize,
+  type Platform,
 } from "~/app/game/_components/game-settings";
 import { getLevelMap } from "~/app/game/_components/map-data";
 
@@ -39,6 +40,8 @@ type GameSettingsContextValue = {
   resumeGame: () => void;
   requestMapRestart: () => void;
   mapRestartKey: number;
+  hasSelectedPlatform: boolean;
+  selectPlatform: (platform: Platform) => void;
 };
 
 const GameSettingsContext = createContext<GameSettingsContextValue | null>(null);
@@ -69,6 +72,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
   const fog = useMemo(() => computeFog(settings), [settings]);
   const cameraFar = useMemo(() => computeCameraFar(settings.mapSize), [settings.mapSize]);
   const mapSizeDirty = settings.mapSize !== sessionMapSize;
+  const hasSelectedPlatform = settings.platform !== undefined;
 
   /**
    * Merges partial setting changes and persists them to localStorage.
@@ -76,6 +80,20 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
+      if (partial.platform === "android" && document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      saveGameSettings(next);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Persists the chosen control platform and saves settings.
+   */
+  const selectPlatform = useCallback((platform: Platform) => {
+    setSettings((prev) => {
+      const next = { ...prev, platform };
       saveGameSettings(next);
       return next;
     });
@@ -155,6 +173,8 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
       resumeGame,
       requestMapRestart,
       mapRestartKey,
+      hasSelectedPlatform,
+      selectPlatform,
     }),
     [
       settings,
@@ -170,6 +190,8 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
       resumeGame,
       requestMapRestart,
       mapRestartKey,
+      hasSelectedPlatform,
+      selectPlatform,
     ],
   );
 

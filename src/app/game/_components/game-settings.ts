@@ -7,6 +7,10 @@ export const mapSizeSchema = z.enum(["small", "medium", "large"]);
 
 export type MapSize = z.infer<typeof mapSizeSchema>;
 
+export const platformSchema = z.enum(["computer", "android"]);
+
+export type Platform = z.infer<typeof platformSchema>;
+
 export const gameSettingsSchema = z.object({
   mapSize: mapSizeSchema,
   masterBrightness: z.number().min(0.5).max(1.5),
@@ -14,6 +18,7 @@ export const gameSettingsSchema = z.object({
   torchBrightness: z.number().min(0.5).max(1.5),
   enemyGlow: z.number().min(0.5).max(1.5),
   fogDistance: z.number().min(0.5).max(1.5),
+  platform: platformSchema.optional(),
 });
 
 export type GameSettings = z.infer<typeof gameSettingsSchema>;
@@ -145,4 +150,13 @@ export function getMapSizeLabel(mapSize: MapSize): string {
     default:
       return "Medium (20×20)";
   }
+}
+
+/**
+ * Human-readable label for a control platform.
+ *
+ * @param platform - Selected platform id.
+ */
+export function getPlatformLabel(platform: Platform): string {
+  return platform === "android" ? "Android touch" : "Computer";
 }

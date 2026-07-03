@@ -5,6 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, type ComponentRef } from "react";
 import * as THREE from "three";
 
+import { unlockJumpScareAudio } from "~/app/game/_components/death-jumpscare-audio";
 import { useGameSettings } from "~/app/game/_components/game-settings-provider";
 import { useGameState } from "~/app/game/_components/game-state";
 import {
@@ -12,6 +13,11 @@ import {
   parseSpawnPoints,
   SHOOT_RANGE,
 } from "~/app/game/_components/map-data";
+import {
+  consumeTouchLookDelta,
+  resetTouchInputState,
+  touchInputState,
+} from "~/app/game/_components/touch-input";
 
 const keys = {
   forward: false,
@@ -20,8 +26,10 @@ const keys = {
   right: false,
 };
 
+const PITCH_LIMIT = Math.PI / 2 - 0.05;
+
 /**
- * First-person player controller with WASD movement, pointer lock, and shooting.
+ * First-person player controller with WASD/pointer-lock (computer) or touch (Android).
  *
  * Attach to the scene root; it creates the active camera and handles combat input.
  */
@@ -32,8 +40,9 @@ export function Player() {
   const direction = useRef(new THREE.Vector3());
   const lastShotRef = useRef(0);
   const muzzleFlashRef = useRef<THREE.PointLight>(null);
-  const { levelMap, isPaused, isSettingsOpen } = useGameSettings();
+  const { levelMap, isPaused, isSettingsOpen, settings } = useGameSettings();
   const spawns = useMemo(() => parseSpawnPoints(levelMap), [levelMap]);
+  const isAndroid = settings.platform === "android";
 
   const {
     playerPositionRef,
@@ -52,9 +61,12 @@ export function Player() {
     camera.position.set(spawns.player.x, 1.6, spawns.player.z);
     camera.rotation.set(0, 0, 0);
     playerPositionRef.current = { x: spawns.player.x, z: spawns.player.z };
+    resetTouchInputState();
   }, [camera, playerPositionRef, spawns.player.x, spawns.player.z, sessionId]);
 
   useEffect(() => {
+    if (isAndroid) return;
+
     /**
      * Tracks pressed movement keys for continuous WASD input.
      */
@@ -109,7 +121,7 @@ export function Player() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, []);
+  }, [isAndroid]);
 
   /**
    * Applies splash damage to enemies near a primary hit target.
@@ -144,6 +156,8 @@ export function Player() {
    */
   const shoot = useCallback(() => {
     if (isGameOver || isVictory || isPaused) return;
+
+    unlockJumpScareAudio();
 
     const now = performance.now();
     if (now - lastShotRef.current < combatStats.fireCooldownMs) return;
@@ -189,10 +203,13 @@ export function Player() {
   ]);
 
   useEffect(() => {
+    if (isAndroid) return;
+
     /**
      * Fires the weapon when the player clicks while pointer lock is active.
      */
     const onMouseDown = () => {
+      unlockJumpScareAudio();
       if (document.pointerLockElement) {
         shoot();
       }
@@ -200,18 +217,37 @@ export function Player() {
 
     window.addEventListener("mousedown", onMouseDown);
     return () => window.removeEventListener("mousedown", onMouseDown);
-  }, [shoot]);
+  }, [isAndroid, shoot]);
 
   useFrame((_, delta) => {
     if (!isLocked || isGameOver || isVictory || isPaused || isSettingsOpen) return;
 
+    if (isAndroid) {
+      const { yaw, pitch } = consumeTouchLookDelta();
+      camera.rotation.order = "YXZ";
+      camera.rotation.y += yaw;
+      camera.rotation.x = Math.max(
+        -PITCH_LIMIT,
+        Math.min(PITCH_LIMIT, camera.rotation.x + pitch),
+      );
+
+      if (touchInputState.fireHeld) {
+        shoot();
+      }
+    }
+
     velocity.current.set(0, 0, 0);
     direction.current.set(0, 0, 0);
 
-    if (keys.forward) direction.current.z -= 1;
-    if (keys.backward) direction.current.z += 1;
-    if (keys.left) direction.current.x -= 1;
-    if (keys.right) direction.current.x += 1;
+    if (isAndroid) {
+      direction.current.x = touchInputState.move.x;
+      direction.current.z = -touchInputState.move.z;
+    } else {
+      if (keys.forward) direction.current.z -= 1;
+      if (keys.backward) direction.current.z += 1;
+      if (keys.left) direction.current.x -= 1;
+      if (keys.right) direction.current.x += 1;
+    }
 
     if (direction.current.lengthSq() > 0) {
       direction.current.normalize();
@@ -244,11 +280,16 @@ export function Player() {
 
   return (
     <>
-      <PointerLockControls
-        ref={controlsRef}
-        onLock={() => setIsLocked(true)}
-        onUnlock={() => setIsLocked(false)}
-      />
+      {!isAndroid && (
+        <PointerLockControls
+          ref={controlsRef}
+          onLock={() => {
+            unlockJumpScareAudio();
+            setIsLocked(true);
+          }}
+          onUnlock={() => setIsLocked(false)}
+        />
+      )}
 
       <group position={[0, -0.4, -0.6]}>
         <mesh position={[0.25, -0.2, -0.3]} rotation={[0.1, 0.05, 0]}>

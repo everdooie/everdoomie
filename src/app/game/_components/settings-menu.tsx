@@ -2,8 +2,10 @@
 
 import {
   getMapSizeLabel,
+  getPlatformLabel,
   type GameSettings,
   type MapSize,
+  type Platform,
 } from "~/app/game/_components/game-settings";
 import { useGameSettings } from "~/app/game/_components/game-settings-provider";
 
@@ -55,14 +57,35 @@ export function SettingsMenu({
   onApplyMap,
 }: SettingsMenuProps) {
   const mapSizes: MapSize[] = ["small", "medium", "large"];
+  const platforms: Platform[] = ["computer", "android"];
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="w-full max-w-md rounded border border-red-900/60 bg-[#120a08]/95 p-6 shadow-2xl shadow-red-950/40">
         <h2 className="mb-1 text-2xl font-bold tracking-widest text-red-500">SETTINGS</h2>
-        <p className="mb-6 text-xs text-gray-500">Escape to resume · Changes save automatically</p>
+        <p className="mb-6 text-xs text-gray-500">Escape or Resume to close · Changes save automatically</p>
 
         <div className="space-y-5">
+          <div>
+            <p className="mb-2 text-xs tracking-wider text-gray-400 uppercase">Platform</p>
+            <div className="grid grid-cols-2 gap-2">
+              {platforms.map((platform) => (
+                <button
+                  key={platform}
+                  type="button"
+                  onClick={() => onUpdate({ platform })}
+                  className={`rounded border px-2 py-2 text-xs font-bold transition ${
+                    settings.platform === platform
+                      ? "border-red-500 bg-red-950/60 text-red-200"
+                      : "border-gray-700 bg-black/40 text-gray-400 hover:border-gray-500"
+                  }`}
+                >
+                  {getPlatformLabel(platform)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p className="mb-2 text-xs tracking-wider text-gray-400 uppercase">Map Size</p>
             <div className="grid grid-cols-3 gap-2">
