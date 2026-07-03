@@ -241,7 +241,7 @@ export function Player() {
 
     if (isAndroid) {
       direction.current.x = touchInputState.move.x;
-      direction.current.z = -touchInputState.move.z;
+      direction.current.z = touchInputState.move.z;
     } else {
       if (keys.forward) direction.current.z -= 1;
       if (keys.backward) direction.current.z += 1;
