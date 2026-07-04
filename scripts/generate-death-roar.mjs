@@ -68,15 +68,15 @@ for (let i = 0; i < NUM_SAMPLES; i++) {
   samples[i] = (rumble + grit + punch + growl) * env;
 }
 
-// Normalize and apply soft clip for loudness
+// Normalize with moderate headroom — avoids clipping when layered with jumpscare SFX
 let peak = 0;
 for (let i = 0; i < NUM_SAMPLES; i++) {
   peak = Math.max(peak, Math.abs(samples[i]));
 }
-const gain = 0.95 / peak;
+const gain = 0.78 / peak;
 for (let i = 0; i < NUM_SAMPLES; i++) {
   const x = samples[i] * gain;
-  samples[i] = Math.tanh(x * 1.8); // soft saturation
+  samples[i] = Math.tanh(x * 1.35); // light saturation
 }
 
 /** Writes 16-bit mono PCM WAV. */

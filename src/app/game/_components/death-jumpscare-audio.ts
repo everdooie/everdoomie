@@ -1,5 +1,11 @@
 "use client";
 
+/** HTML media volume for jump-scare playback (0–1). */
+export const JUMPSCARE_PLAYBACK_VOLUME = 0.6;
+
+/** HTML media volume for death-roar playback (0–1). */
+export const DEATH_ROAR_PLAYBACK_VOLUME = 0.55;
+
 /** Public path to the committed jump-scare sound effect. */
 export const JUMPSCARE_AUDIO_SRC = "/sounds/jumpscare.wav";
 
@@ -64,6 +70,8 @@ function resolveDomAudioElement(
 
   const preloaded = document.getElementById(preloadId);
   if (preloaded instanceof HTMLAudioElement) {
+    preloaded.volume =
+      label === "jumpscare" ? JUMPSCARE_PLAYBACK_VOLUME : DEATH_ROAR_PLAYBACK_VOLUME;
     logJumpScareAudio(`using preloaded DOM audio element (${label})`);
     return preloaded;
   }
@@ -71,7 +79,8 @@ function resolveDomAudioElement(
   const element = document.createElement("audio");
   element.src = src;
   element.preload = "auto";
-  element.volume = 1;
+  element.volume =
+    label === "jumpscare" ? JUMPSCARE_PLAYBACK_VOLUME : DEATH_ROAR_PLAYBACK_VOLUME;
   element.style.display = "none";
   element.setAttribute("aria-hidden", "true");
   document.body.appendChild(element);
@@ -112,7 +121,11 @@ function getRoarAudioElement(): HTMLAudioElement {
  * @param audio - DOM audio element to prime.
  * @param label - Log label for diagnostics.
  */
-function unlockAudioElement(audio: HTMLAudioElement, label: string): void {
+function unlockAudioElement(
+  audio: HTMLAudioElement,
+  label: string,
+  playbackVolume: number,
+): void {
   if (audio.readyState < HTMLMediaElement.HAVE_METADATA) {
     audio.load();
   }
@@ -125,7 +138,7 @@ function unlockAudioElement(audio: HTMLAudioElement, label: string): void {
     .then(() => {
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 1;
+      audio.volume = playbackVolume;
       logJumpScareAudio(`audio unlocked successfully (${label})`, {
         readyState: audio.readyState,
       });
@@ -144,20 +157,26 @@ function unlockAudioElement(audio: HTMLAudioElement, label: string): void {
 export function unlockJumpScareAudio(): void {
   if (typeof document === "undefined") return;
 
-  unlockAudioElement(getScareAudioElement(), "jumpscare");
-  unlockAudioElement(getRoarAudioElement(), "death-roar");
+  unlockAudioElement(getScareAudioElement(), "jumpscare", JUMPSCARE_PLAYBACK_VOLUME);
+  unlockAudioElement(getRoarAudioElement(), "death-roar", DEATH_ROAR_PLAYBACK_VOLUME);
   isAudioUnlocked = true;
 }
 
 /**
- * Plays a loud burst from a DOM audio element, with fallback clone on rejection.
+ * Plays a one-shot burst from a DOM audio element, with fallback clone on rejection.
  *
  * @param audio - Prepared audio element.
  * @param src - Source URL for fallback clone.
  * @param label - Log label for diagnostics.
+ * @param playbackVolume - HTML media volume for this clip (0–1).
  */
-function playFromElement(audio: HTMLAudioElement, src: string, label: string): void {
-  audio.volume = 1;
+function playFromElement(
+  audio: HTMLAudioElement,
+  src: string,
+  label: string,
+  playbackVolume: number,
+): void {
+  audio.volume = playbackVolume;
   audio.currentTime = 0;
 
   logJumpScareAudio(`play() called on death (${label})`, {
@@ -176,7 +195,7 @@ function playFromElement(audio: HTMLAudioElement, src: string, label: string): v
 
       const fallback = document.createElement("audio");
       fallback.src = src;
-      fallback.volume = 1;
+      fallback.volume = playbackVolume;
       fallback.style.display = "none";
       fallback.setAttribute("aria-hidden", "true");
       document.body.appendChild(fallback);
@@ -194,31 +213,6 @@ function playFromElement(audio: HTMLAudioElement, src: string, label: string): v
 }
 
 /**
- * Plays a one-shot clone for extra loudness, removing it after playback.
- *
- * @param src - Audio source URL.
- * @param label - Log label for diagnostics.
- * @param cleanupMs - Milliseconds before removing the clone from the DOM.
- */
-function playBoosterClone(src: string, label: string, cleanupMs = 3000): void {
-  const booster = document.createElement("audio");
-  booster.src = src;
-  booster.volume = 1;
-  booster.style.display = "none";
-  booster.setAttribute("aria-hidden", "true");
-  document.body.appendChild(booster);
-
-  void booster
-    .play()
-    .catch((error: unknown) => {
-      logJumpScareAudio(`booster clone play() rejected (${label})`, error);
-    })
-    .finally(() => {
-      window.setTimeout(() => booster.remove(), cleanupMs);
-    });
-}
-
-/**
  * Plays the death jump-scare and roar sound effects immediately.
  *
  * Call synchronously when the player dies (e.g. from `damagePlayer`). Safe to
@@ -232,12 +226,10 @@ export function playDeathJumpScareAudio(): void {
   lastDeathPlayAt = now;
 
   const primary = getScareAudioElement();
-  playFromElement(primary, JUMPSCARE_AUDIO_SRC, "jumpscare");
-  playBoosterClone(JUMPSCARE_AUDIO_SRC, "jumpscare");
+  playFromElement(primary, JUMPSCARE_AUDIO_SRC, "jumpscare", JUMPSCARE_PLAYBACK_VOLUME);
 
   const roar = getRoarAudioElement();
-  playFromElement(roar, DEATH_ROAR_AUDIO_SRC, "death-roar");
-  playBoosterClone(DEATH_ROAR_AUDIO_SRC, "death-roar", 4000);
+  playFromElement(roar, DEATH_ROAR_AUDIO_SRC, "death-roar", DEATH_ROAR_PLAYBACK_VOLUME);
 }
 
 /**
