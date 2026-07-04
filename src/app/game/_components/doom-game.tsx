@@ -4,7 +4,12 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect } from "react";
 
 import { DeathJumpScareProvider } from "~/app/game/_components/death-jumpscare";
-import { JUMPSCARE_AUDIO_ELEMENT_ID, JUMPSCARE_AUDIO_SRC } from "~/app/game/_components/death-jumpscare-audio";
+import {
+  DEATH_ROAR_AUDIO_ELEMENT_ID,
+  DEATH_ROAR_AUDIO_SRC,
+  JUMPSCARE_AUDIO_ELEMENT_ID,
+  JUMPSCARE_AUDIO_SRC,
+} from "~/app/game/_components/death-jumpscare-audio";
 import { Enemies } from "~/app/game/_components/enemies";
 import { GameSettingsProvider, useGameSettings } from "~/app/game/_components/game-settings-provider";
 import { GameStateProvider } from "~/app/game/_components/game-state";
@@ -62,10 +67,17 @@ function DoomGameContent() {
     <GameStateProvider key={mapRestartKey} levelMap={levelMap}>
       <DeathJumpScareProvider>
         <div className="relative h-screen w-screen touch-none overflow-hidden bg-black">
-          {/* Preload scare audio in DOM so first click unlocks a ready element. */}
+          {/* Preload scare audio in DOM so first click unlocks ready elements. */}
           <audio
             id={JUMPSCARE_AUDIO_ELEMENT_ID}
             src={JUMPSCARE_AUDIO_SRC}
+            preload="auto"
+            className="hidden"
+            aria-hidden={true}
+          />
+          <audio
+            id={DEATH_ROAR_AUDIO_ELEMENT_ID}
+            src={DEATH_ROAR_AUDIO_SRC}
             preload="auto"
             className="hidden"
             aria-hidden={true}
