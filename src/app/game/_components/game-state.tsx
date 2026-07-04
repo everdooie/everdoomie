@@ -115,6 +115,8 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
   const spawns = useMemo(() => parseSpawnPoints(levelMap), [levelMap]);
   const playerPositionRef = useRef({ x: spawns.player.x, z: spawns.player.z });
   const intermissionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intermissionNextWaveRef = useRef<number | null>(null);
+  const intermissionEndTimeRef = useRef<number | null>(null);
   const emergencyAmmoPendingRef = useRef(false);
   const dotAccumulatorRef = useRef(0);
   const combatStatsRef = useRef(computePlayerCombatStats([]));
@@ -235,8 +237,35 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
         clearTimeout(intermissionTimerRef.current);
         intermissionTimerRef.current = null;
       }
+      intermissionNextWaveRef.current = null;
+      intermissionEndTimeRef.current = null;
     },
     [levelMap, spawns.enemies, spawns.player],
+  );
+
+  /**
+   * Schedules the next wave after an intermission delay.
+   *
+   * @param nextWave - Wave number to start.
+   * @param delayMs - Milliseconds to wait before starting.
+   */
+  const scheduleIntermission = useCallback(
+    (nextWave: number, delayMs: number) => {
+      if (intermissionTimerRef.current) {
+        clearTimeout(intermissionTimerRef.current);
+      }
+
+      intermissionNextWaveRef.current = nextWave;
+      intermissionEndTimeRef.current = performance.now() + delayMs;
+
+      intermissionTimerRef.current = setTimeout(() => {
+        intermissionTimerRef.current = null;
+        intermissionNextWaveRef.current = null;
+        intermissionEndTimeRef.current = null;
+        startWave(nextWave);
+      }, delayMs);
+    },
+    [startWave],
   );
 
   /**
@@ -253,12 +282,9 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
 
       setWavePhase("intermission");
       setWaveMessage(`Wave ${clearedWave} cleared! Next wave incoming...`);
-
-      intermissionTimerRef.current = setTimeout(() => {
-        startWave(clearedWave + 1);
-      }, WAVE_INTERMISSION_MS);
+      scheduleIntermission(clearedWave + 1, WAVE_INTERMISSION_MS);
     },
-    [startWave],
+    [scheduleIntermission],
   );
 
   const damageEnemy = useCallback(
@@ -332,6 +358,8 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
       clearTimeout(intermissionTimerRef.current);
       intermissionTimerRef.current = null;
     }
+    intermissionNextWaveRef.current = null;
+    intermissionEndTimeRef.current = null;
 
     emergencyAmmoPendingRef.current = false;
     dotAccumulatorRef.current = 0;
@@ -365,11 +393,32 @@ export function GameStateProvider({ children, levelMap }: GameStateProviderProps
   }, []);
 
   useEffect(() => {
-    if (!pickupMessage) return;
+    if (wavePhase !== "intermission" || isGameOver || isVictory) return;
+
+    if (isPaused) {
+      if (intermissionTimerRef.current && intermissionEndTimeRef.current !== null) {
+        clearTimeout(intermissionTimerRef.current);
+        intermissionTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (
+      !intermissionTimerRef.current &&
+      intermissionEndTimeRef.current !== null &&
+      intermissionNextWaveRef.current !== null
+    ) {
+      const remaining = Math.max(0, intermissionEndTimeRef.current - performance.now());
+      scheduleIntermission(intermissionNextWaveRef.current, remaining);
+    }
+  }, [isGameOver, isPaused, isVictory, scheduleIntermission, wavePhase]);
+
+  useEffect(() => {
+    if (!pickupMessage || isPaused) return;
 
     const timer = setTimeout(() => setPickupMessage(null), 2800);
     return () => clearTimeout(timer);
-  }, [pickupMessage]);
+  }, [isPaused, pickupMessage]);
 
   useEffect(() => {
     if (isGameOver || isVictory || isPaused) return;

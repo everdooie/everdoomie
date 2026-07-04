@@ -12,6 +12,7 @@ import {
   type PickupItemId,
   type PickupShape,
 } from "~/app/game/_components/pickup-data";
+import { isSimulationPaused } from "~/app/game/_components/simulation-pause";
 
 type PickupMeshProps = {
   x: number;
@@ -100,9 +101,10 @@ function PickupMesh({ x, z, itemId }: PickupMeshProps) {
   const meshRef = useRef<THREE.Group>(null);
   const item = getPickupItem(itemId);
   const spinSpeed = item.kind === "debuff" ? -2 : item.id === "ammo-crate" ? 0.8 : 2.8;
+  const { isPaused } = useGameSettings();
 
   useFrame((_, delta) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || isPaused || isSimulationPaused()) return;
     meshRef.current.rotation.y += delta * spinSpeed;
     const bob =
       item.id === "ammo-crate"
@@ -155,7 +157,7 @@ export function Pickups() {
   }, [sessionId, currentWave]);
 
   useFrame(() => {
-    if (isGameOver || isVictory || isPaused) return;
+    if (isGameOver || isVictory || isPaused || isSimulationPaused()) return;
 
     const player = playerPositionRef.current;
     for (const pickup of pickups) {

@@ -37,11 +37,11 @@ export function Hud() {
   const [now, setNow] = useState(() => performance.now());
 
   useEffect(() => {
-    if (!isLocked || activeEffects.length === 0) return;
+    if (!isLocked || activeEffects.length === 0 || isSettingsOpen) return;
 
     const interval = setInterval(() => setNow(performance.now()), 250);
     return () => clearInterval(interval);
-  }, [activeEffects.length, isLocked]);
+  }, [activeEffects.length, isLocked, isSettingsOpen]);
 
   /**
    * Starts Android gameplay without pointer lock.
@@ -76,7 +76,7 @@ export function Hud() {
                   <p>Left joystick — Move</p>
                   <p>Right side — Drag to look</p>
                   <p>FIRE button — Shoot</p>
-                  <p>⚙ — Settings</p>
+                  <p>PAUSE — Pause &amp; settings</p>
                 </div>
               </>
             ) : (

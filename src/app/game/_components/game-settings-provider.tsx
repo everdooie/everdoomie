@@ -24,6 +24,7 @@ import {
   type Platform,
 } from "~/app/game/_components/game-settings";
 import { getLevelMap } from "~/app/game/_components/map-data";
+import { setSimulationPaused } from "~/app/game/_components/simulation-pause";
 
 type GameSettingsContextValue = {
   settings: GameSettings;
@@ -106,6 +107,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
     if (document.pointerLockElement) {
       document.exitPointerLock();
     }
+    setSimulationPaused(true);
     setIsSettingsOpen(true);
   }, []);
 
@@ -113,6 +115,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
    * Closes the settings overlay without restarting the map.
    */
   const closeSettings = useCallback(() => {
+    setSimulationPaused(false);
     setIsSettingsOpen(false);
   }, []);
 
@@ -124,6 +127,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
       setSessionMapSize(settings.mapSize);
       setMapRestartKey((key) => key + 1);
     }
+    setSimulationPaused(false);
     setIsSettingsOpen(false);
   }, [mapSizeDirty, settings.mapSize]);
 
@@ -133,6 +137,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
   const requestMapRestart = useCallback(() => {
     setSessionMapSize(settings.mapSize);
     setMapRestartKey((key) => key + 1);
+    setSimulationPaused(false);
     setIsSettingsOpen(false);
   }, [settings.mapSize]);
 

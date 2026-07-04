@@ -52,7 +52,7 @@ function usePreventTouchDefaults(enabled: boolean) {
  * Inner game shell wired to settings context and dynamic map restarts.
  */
 function DoomGameContent() {
-  const { levelMap, fog, cameraFar, mapRestartKey, settings } = useGameSettings();
+  const { levelMap, fog, cameraFar, mapRestartKey, settings, isPaused } = useGameSettings();
   const { width, depth } = getMapDimensions(levelMap);
   const isAndroid = settings.platform === "android";
 
@@ -72,6 +72,7 @@ function DoomGameContent() {
           />
           <Canvas
             shadows
+            frameloop={isPaused ? "never" : "always"}
             camera={{ fov: 75, near: 0.1, far: cameraFar, position: [0, 1.6, 0] }}
             gl={{ antialias: true }}
           >

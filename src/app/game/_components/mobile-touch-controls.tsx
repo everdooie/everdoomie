@@ -27,6 +27,14 @@ export function MobileTouchControls() {
   const isActive = isAndroid && isLocked && !isGameOver && !isVictory && !isSettingsOpen;
 
   /**
+   * Opens the pause/settings menu and clears touch input (same as Escape on desktop).
+   */
+  const handlePause = useCallback(() => {
+    resetTouchInputState();
+    openSettings();
+  }, [openSettings]);
+
+  /**
    * Updates the visual joystick knob position from normalized input.
    */
   const updateKnobVisual = useCallback((normX: number, normZ: number) => {
@@ -199,15 +207,27 @@ export function MobileTouchControls() {
         FIRE
       </button>
 
-      {/* Settings — mobile has no Escape key */}
+      {/* Pause — mobile has no Escape key */}
+      <button
+        type="button"
+        aria-label="Pause game"
+        className="pointer-events-auto absolute top-4 left-4 flex h-12 min-h-12 items-center justify-center rounded-full border-2 border-gray-600 bg-black/70 px-4 text-xs font-bold tracking-widest text-gray-200 shadow-lg active:bg-gray-900/80"
+        onTouchStart={(event) => {
+          event.preventDefault();
+          handlePause();
+        }}
+      >
+        PAUSE
+      </button>
+
+      {/* Settings gear — also opens pause menu */}
       <button
         type="button"
         aria-label="Open settings"
         className="pointer-events-auto absolute top-4 right-4 flex h-12 w-12 min-h-12 min-w-12 items-center justify-center rounded-full border border-gray-700 bg-black/60 text-lg text-gray-300"
         onTouchStart={(event) => {
           event.preventDefault();
-          resetTouchInputState();
-          openSettings();
+          handlePause();
         }}
       >
         ⚙

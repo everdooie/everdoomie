@@ -14,6 +14,7 @@ import {
   ENEMY_DAMAGE_COOLDOWN,
   isWalkable,
 } from "~/app/game/_components/map-data";
+import { isSimulationPaused } from "~/app/game/_components/simulation-pause";
 
 type EnemyMeshProps = {
   id: string;
@@ -60,7 +61,14 @@ function EnemyMesh({
   }, [initialX, initialZ, sessionId]);
 
   useFrame((_, delta) => {
-    if (isGameOver || isVictory || isPaused || wavePhase === "intermission" || !meshRef.current) {
+    if (
+      isGameOver ||
+      isVictory ||
+      isPaused ||
+      isSimulationPaused() ||
+      wavePhase === "intermission" ||
+      !meshRef.current
+    ) {
       return;
     }
 

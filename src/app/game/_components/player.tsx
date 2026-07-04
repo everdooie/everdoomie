@@ -18,6 +18,7 @@ import {
   resetTouchInputState,
   touchInputState,
 } from "~/app/game/_components/touch-input";
+import { isSimulationPaused } from "~/app/game/_components/simulation-pause";
 
 const keys = {
   forward: false,
@@ -65,12 +66,24 @@ export function Player() {
   }, [camera, playerPositionRef, spawns.player.x, spawns.player.z, sessionId]);
 
   useEffect(() => {
+    if (!isPaused && !isSettingsOpen) return;
+
+    keys.forward = false;
+    keys.backward = false;
+    keys.left = false;
+    keys.right = false;
+    resetTouchInputState();
+  }, [isPaused, isSettingsOpen]);
+
+  useEffect(() => {
     if (isAndroid) return;
 
     /**
      * Tracks pressed movement keys for continuous WASD input.
      */
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isPaused || isSettingsOpen) return;
+
       switch (event.code) {
         case "KeyW":
         case "ArrowUp":
@@ -95,6 +108,8 @@ export function Player() {
      * Clears movement key state when keys are released.
      */
     const onKeyUp = (event: KeyboardEvent) => {
+      if (isPaused || isSettingsOpen) return;
+
       switch (event.code) {
         case "KeyW":
         case "ArrowUp":
@@ -121,7 +136,7 @@ export function Player() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [isAndroid]);
+  }, [isAndroid, isPaused, isSettingsOpen]);
 
   /**
    * Applies splash damage to enemies near a primary hit target.
@@ -155,7 +170,7 @@ export function Player() {
    * Performs a hitscan shot from the camera forward vector.
    */
   const shoot = useCallback(() => {
-    if (isGameOver || isVictory || isPaused) return;
+    if (isGameOver || isVictory || isPaused || isSimulationPaused()) return;
 
     unlockJumpScareAudio();
 
@@ -220,7 +235,16 @@ export function Player() {
   }, [isAndroid, shoot]);
 
   useFrame((_, delta) => {
-    if (!isLocked || isGameOver || isVictory || isPaused || isSettingsOpen) return;
+    if (
+      !isLocked ||
+      isGameOver ||
+      isVictory ||
+      isPaused ||
+      isSettingsOpen ||
+      isSimulationPaused()
+    ) {
+      return;
+    }
 
     if (isAndroid) {
       const { yaw, pitch } = consumeTouchLookDelta();
