@@ -1,7 +1,7 @@
 "use client";
 
-/** HTML media volume for jump-scare playback (0–1). */
-export const JUMPSCARE_PLAYBACK_VOLUME = 0.6;
+/** HTML media volume for jump-scare playback (0–1). Short sting; roar carries the growl. */
+export const JUMPSCARE_PLAYBACK_VOLUME = 0.48;
 
 /** HTML media volume for death-roar playback (0–1). */
 export const DEATH_ROAR_PLAYBACK_VOLUME = 0.55;
