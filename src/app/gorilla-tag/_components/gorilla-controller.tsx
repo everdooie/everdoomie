@@ -18,6 +18,7 @@ import {
   solveTwoBoneIk,
   stepGorillaBody,
 } from "~/app/gorilla-tag/_components/gorilla-physics";
+import { consumeGorillaLookYaw, gorillaTouchState } from "~/app/gorilla-tag/_components/gorilla-touch";
 import { type GorillaTurnKeys } from "~/app/gorilla-tag/_components/use-gorilla-turn-keys";
 
 const FIST_HIT = "#ffb060";
@@ -50,10 +51,12 @@ const _min = new THREE.Vector3();
 const _max = new THREE.Vector3();
 const _fromShoulder = new THREE.Vector3();
 const _yawAxis = new THREE.Vector3(0, 1, 0);
+const _touchPointer = new THREE.Vector2();
 
 type GorillaControllerProps = {
   playing: boolean;
   tagged: boolean;
+  touchAim: boolean;
   palette: GorillaPalette;
   turnKeysRef: RefObject<GorillaTurnKeys>;
   playerPositionRef: RefObject<THREE.Vector3>;
@@ -176,6 +179,7 @@ function raycastAim(
  *
  * @param playing - When false, pose is frozen.
  * @param tagged - When true, locomotion stops after a round ends.
+ * @param touchAim - When true, the hand half drives the arm instead of the mouse.
  * @param palette - Fur and skin colors (brown civilian or red tagger).
  * @param turnKeysRef - A/D look keys tracked on the page (not the canvas).
  * @param playerPositionRef - Written each frame so tag bots can chase or flee.
@@ -183,6 +187,7 @@ function raycastAim(
 export function GorillaController({
   playing,
   tagged,
+  touchAim,
   palette,
   turnKeysRef,
   playerPositionRef,
@@ -215,12 +220,20 @@ export function GorillaController({
       const held = turnKeysRef.current;
       const turn = (held?.left ? 1 : 0) + (held?.right ? -1 : 0);
       cameraYaw.current += turn * CAMERA_TURN_SPEED * Math.min(delta, 0.05);
+      cameraYaw.current += consumeGorillaLookYaw();
+    } else {
+      consumeGorillaLookYaw();
     }
 
     group.position.copy(body.position);
     group.rotation.y = cameraYaw.current + Math.PI;
 
-    raycaster.setFromCamera(pointer, camera);
+    if (touchAim && gorillaTouchState.hasHand) {
+      _touchPointer.set(gorillaTouchState.pointerX, gorillaTouchState.pointerY);
+      raycaster.setFromCamera(_touchPointer, camera);
+    } else {
+      raycaster.setFromCamera(pointer, camera);
+    }
     const aim = raycastAim(raycaster, body.position, cameraYaw.current);
     if (markerRef.current) {
       markerRef.current.position.copy(aim);

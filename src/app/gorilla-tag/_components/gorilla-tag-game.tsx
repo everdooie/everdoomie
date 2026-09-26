@@ -11,6 +11,10 @@ import {
   getGorillaModeOption,
   type GorillaMode,
 } from "~/app/gorilla-tag/_components/gorilla-modes";
+import {
+  GorillaTouchControls,
+  useGorillaTouchLayout,
+} from "~/app/gorilla-tag/_components/gorilla-touch-controls";
 import { ModeSelect } from "~/app/gorilla-tag/_components/mode-select";
 import { BOT_COUNT, TagBots } from "~/app/gorilla-tag/_components/tag-bots";
 import { useGorillaTurnKeys } from "~/app/gorilla-tag/_components/use-gorilla-turn-keys";
@@ -41,6 +45,7 @@ export function GorillaTagGame() {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerPositionRef = useRef(new THREE.Vector3());
   const turnKeysRef = useGorillaTurnKeys();
+  const touchLayout = useGorillaTouchLayout();
   const roundOver = tagged || won;
   const option = getGorillaModeOption(mode);
 
@@ -141,6 +146,7 @@ export function GorillaTagGame() {
           key={`player-${runId}`}
           playing={playing}
           tagged={roundOver}
+          touchAim={touchLayout}
           palette={playerPalette}
           turnKeysRef={turnKeysRef}
           playerPositionRef={playerPositionRef}
@@ -159,6 +165,8 @@ export function GorillaTagGame() {
       </Canvas>
 
       {!playing && <ModeSelect onSelect={start} />}
+
+      <GorillaTouchControls active={playing && !roundOver && touchLayout} />
 
       {playing && !roundOver && (
         <>
@@ -179,13 +187,15 @@ export function GorillaTagGame() {
           <button
             type="button"
             onClick={backToModes}
-            className="absolute top-5 right-5 z-10 rounded-full border border-white/40 bg-black/50 px-4 py-2 font-mono text-sm text-white/90 hover:bg-black/70"
+            className="absolute top-5 right-5 z-20 rounded-full border border-white/40 bg-black/50 px-4 py-2 font-mono text-sm text-white/90 hover:bg-black/70"
           >
             MODES
           </button>
-          <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 text-center font-mono text-sm text-white/90">
-            <p className="rounded bg-black/40 px-4 py-2">{option.hint}</p>
-          </div>
+          {!touchLayout && (
+            <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 text-center font-mono text-sm text-white/90">
+              <p className="rounded bg-black/40 px-4 py-2">{option.hint}</p>
+            </div>
+          )}
         </>
       )}
 
