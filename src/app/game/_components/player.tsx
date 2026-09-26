@@ -30,7 +30,7 @@ const keys = {
 const PITCH_LIMIT = Math.PI / 2 - 0.05;
 
 /**
- * First-person player controller with WASD/pointer-lock (computer) or touch (Android).
+ * First-person player controller with WASD/pointer-lock (computer) or touch (mobile).
  *
  * Attach to the scene root; it creates the active camera and handles combat input.
  */
@@ -43,7 +43,7 @@ export function Player() {
   const muzzleFlashRef = useRef<THREE.PointLight>(null);
   const { levelMap, isPaused, isSettingsOpen, settings } = useGameSettings();
   const spawns = useMemo(() => parseSpawnPoints(levelMap), [levelMap]);
-  const isAndroid = settings.platform === "android";
+  const isMobile = settings.platform === "mobile";
 
   const {
     playerPositionRef,
@@ -76,7 +76,7 @@ export function Player() {
   }, [isPaused, isSettingsOpen]);
 
   useEffect(() => {
-    if (isAndroid) return;
+    if (isMobile) return;
 
     /**
      * Tracks pressed movement keys for continuous WASD input.
@@ -136,7 +136,7 @@ export function Player() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [isAndroid, isPaused, isSettingsOpen]);
+  }, [isMobile, isPaused, isSettingsOpen]);
 
   /**
    * Applies splash damage to enemies near a primary hit target.
@@ -218,7 +218,7 @@ export function Player() {
   ]);
 
   useEffect(() => {
-    if (isAndroid) return;
+    if (isMobile) return;
 
     /**
      * Fires the weapon when the player clicks while pointer lock is active.
@@ -232,7 +232,7 @@ export function Player() {
 
     window.addEventListener("mousedown", onMouseDown);
     return () => window.removeEventListener("mousedown", onMouseDown);
-  }, [isAndroid, shoot]);
+  }, [isMobile, shoot]);
 
   useFrame((_, delta) => {
     if (
@@ -246,7 +246,7 @@ export function Player() {
       return;
     }
 
-    if (isAndroid) {
+    if (isMobile) {
       const { yaw, pitch } = consumeTouchLookDelta();
       camera.rotation.order = "YXZ";
       camera.rotation.y += yaw;
@@ -263,7 +263,7 @@ export function Player() {
     velocity.current.set(0, 0, 0);
     direction.current.set(0, 0, 0);
 
-    if (isAndroid) {
+    if (isMobile) {
       direction.current.x = touchInputState.move.x;
       direction.current.z = touchInputState.move.z;
     } else {
@@ -304,7 +304,7 @@ export function Player() {
 
   return (
     <>
-      {!isAndroid && (
+      {!isMobile && (
         <PointerLockControls
           ref={controlsRef}
           onLock={() => {

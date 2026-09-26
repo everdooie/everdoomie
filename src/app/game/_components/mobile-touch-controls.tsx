@@ -11,7 +11,11 @@ const JOYSTICK_RADIUS_PX = 56;
 const LOOK_SENSITIVITY = 0.004;
 
 /**
- * On-screen touch controls for Android mode: joystick, look zone, fire, and settings.
+ * On-screen touch controls for mobile mode: joystick, look zone, fire, and settings.
+ *
+ * Works on iOS Safari/Chrome, Android Chrome, and other touch tablets. Uses
+ * `touch-action: none` plus non-passive prevention so browsers do not steal
+ * gestures for scroll, pinch-zoom, or callouts.
  */
 export function MobileTouchControls() {
   const { settings, openSettings, isSettingsOpen } = useGameSettings();
@@ -23,8 +27,8 @@ export function MobileTouchControls() {
   const lastLookRef = useRef<{ x: number; y: number } | null>(null);
   const knobRef = useRef<HTMLDivElement>(null);
 
-  const isAndroid = settings.platform === "android";
-  const isActive = isAndroid && isLocked && !isGameOver && !isVictory && !isSettingsOpen;
+  const isMobile = settings.platform === "mobile";
+  const isActive = isMobile && isLocked && !isGameOver && !isVictory && !isSettingsOpen;
 
   /**
    * Opens the pause/settings menu and clears touch input (same as Escape on desktop).
@@ -84,7 +88,10 @@ export function MobileTouchControls() {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[15] touch-none select-none">
+    <div
+      className="pointer-events-none absolute inset-0 z-[15] touch-none select-none"
+      style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+    >
       {/* Movement joystick — left side */}
       <div
         className="pointer-events-auto absolute bottom-8 left-6 h-36 w-36 touch-none"

@@ -56,9 +56,9 @@ export function PlatformSelectScreen({ onSelect }: PlatformSelectScreenProps) {
             onSelect={onSelect}
           />
           <PlatformOption
-            platform="android"
-            title="Android"
-            description="Touch joystick, drag to look, on-screen fire button."
+            platform="mobile"
+            title="Phone / Tablet"
+            description="Touch joystick, drag to look, on-screen fire button. Works on iOS, Android, and other touch devices."
             onSelect={onSelect}
           />
         </div>

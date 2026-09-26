@@ -23,14 +23,17 @@ import { SettingsMenuOverlay } from "~/app/game/_components/settings-menu";
 import { getMapDimensions } from "~/app/game/_components/map-data";
 
 /**
- * Prevents page scroll and pinch-zoom while playing on touch devices.
+ * Prevents page scroll, pinch-zoom, and iOS Safari gesture defaults while
+ * playing with on-screen touch controls.
+ *
+ * @param enabled - When true, installs document-level touch/gesture guards.
  */
 function usePreventTouchDefaults(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
 
     /**
-     * Blocks browser gestures that interfere with in-game touch controls.
+     * Blocks multi-touch browser gestures that interfere with in-game controls.
      */
     const preventTouch = (event: TouchEvent) => {
       if (event.touches.length > 1) {
@@ -38,17 +41,33 @@ function usePreventTouchDefaults(enabled: boolean) {
       }
     };
 
+    /**
+     * Blocks Safari's pinch-zoom / gesture pipeline (iOS-specific event).
+     */
+    const preventGesture = (event: Event) => {
+      event.preventDefault();
+    };
+
     const previousOverflow = document.body.style.overflow;
     const previousTouchAction = document.body.style.touchAction;
+    const previousOverscroll = document.body.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
+    document.body.style.overscrollBehavior = "none";
 
     document.addEventListener("touchmove", preventTouch, { passive: false });
+    document.addEventListener("gesturestart", preventGesture, { passive: false });
+    document.addEventListener("gesturechange", preventGesture, { passive: false });
+    document.addEventListener("gestureend", preventGesture, { passive: false });
 
     return () => {
       document.body.style.overflow = previousOverflow;
       document.body.style.touchAction = previousTouchAction;
+      document.body.style.overscrollBehavior = previousOverscroll;
       document.removeEventListener("touchmove", preventTouch);
+      document.removeEventListener("gesturestart", preventGesture);
+      document.removeEventListener("gesturechange", preventGesture);
+      document.removeEventListener("gestureend", preventGesture);
     };
   }, [enabled]);
 }
@@ -59,9 +78,9 @@ function usePreventTouchDefaults(enabled: boolean) {
 function DoomGameContent() {
   const { levelMap, fog, cameraFar, mapRestartKey, settings, isPaused } = useGameSettings();
   const { width, depth } = getMapDimensions(levelMap);
-  const isAndroid = settings.platform === "android";
+  const isMobile = settings.platform === "mobile";
 
-  usePreventTouchDefaults(isAndroid);
+  usePreventTouchDefaults(isMobile);
 
   return (
     <GameStateProvider key={mapRestartKey} levelMap={levelMap}>

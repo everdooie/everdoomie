@@ -32,7 +32,7 @@ export function Hud() {
   } = useGameState();
   const { isSettingsOpen, settings } = useGameSettings();
   const isDeathScareActive = useIsDeathJumpScareActive();
-  const isAndroid = settings.platform === "android";
+  const isMobile = settings.platform === "mobile";
 
   const [now, setNow] = useState(() => performance.now());
 
@@ -44,9 +44,9 @@ export function Hud() {
   }, [activeEffects.length, isLocked, isSettingsOpen]);
 
   /**
-   * Starts Android gameplay without pointer lock.
+   * Starts mobile gameplay without pointer lock.
    */
-  const handleAndroidStart = () => {
+  const handleMobileStart = () => {
     unlockJumpScareAudio();
     setIsLocked(true);
   };
@@ -63,11 +63,11 @@ export function Hud() {
               Survive {TOTAL_WAVES} waves of demons
             </p>
 
-            {isAndroid ? (
+            {isMobile ? (
               <>
                 <button
                   type="button"
-                  onClick={handleAndroidStart}
+                  onClick={handleMobileStart}
                   className="mb-6 rounded border-2 border-red-600 bg-red-900/50 px-8 py-3 text-lg font-bold tracking-wider text-red-300 transition hover:bg-red-800/70"
                 >
                   TAP TO START
@@ -129,7 +129,7 @@ export function Hud() {
           </div>
 
           {activeEffects.length > 0 && (
-            <div className={`absolute top-4 min-w-48 space-y-1.5 text-xs ${isAndroid ? "right-20" : "right-4"}`}>
+            <div className={`absolute top-4 min-w-48 space-y-1.5 text-xs ${isMobile ? "right-20" : "right-4"}`}>
               <p className="text-[10px] tracking-widest text-gray-500 uppercase">
                 Active Effects
               </p>
@@ -153,7 +153,7 @@ export function Hud() {
             </div>
           )}
 
-          {!isAndroid && (
+          {!isMobile && (
             <div className="absolute right-4 bottom-4 max-w-xs text-right text-[10px] text-gray-500">
               <p className="text-green-500">Green/cyan — buffs & heals</p>
               <p className="text-purple-400">Purple/gray — curses & jams</p>
@@ -183,7 +183,7 @@ export function Hud() {
           )}
 
           {ammo === 0 && (
-            <div className={`absolute left-1/2 -translate-x-1/2 text-center ${isAndroid ? "bottom-36" : "bottom-24"}`}>
+            <div className={`absolute left-1/2 -translate-x-1/2 text-center ${isMobile ? "bottom-36" : "bottom-24"}`}>
               <p className="animate-pulse text-sm font-bold tracking-wider text-yellow-300">
                 OUT OF AMMO — FIND THE GOLD CRATE
               </p>

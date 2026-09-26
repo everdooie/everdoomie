@@ -81,7 +81,7 @@ export function GameSettingsProvider({ children }: GameSettingsProviderProps) {
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
-      if (partial.platform === "android" && document.pointerLockElement) {
+      if (partial.platform === "mobile" && document.pointerLockElement) {
         document.exitPointerLock();
       }
       saveGameSettings(next);

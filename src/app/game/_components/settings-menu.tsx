@@ -57,7 +57,7 @@ export function SettingsMenu({
   onApplyMap,
 }: SettingsMenuProps) {
   const mapSizes: MapSize[] = ["small", "medium", "large"];
-  const platforms: Platform[] = ["computer", "android"];
+  const platforms: Platform[] = ["computer", "mobile"];
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">

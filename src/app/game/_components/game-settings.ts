@@ -7,7 +7,7 @@ export const mapSizeSchema = z.enum(["small", "medium", "large"]);
 
 export type MapSize = z.infer<typeof mapSizeSchema>;
 
-export const platformSchema = z.enum(["computer", "android"]);
+export const platformSchema = z.enum(["computer", "mobile"]);
 
 export type Platform = z.infer<typeof platformSchema>;
 
@@ -20,6 +20,23 @@ export const gameSettingsSchema = z.object({
   fogDistance: z.number().min(0.5).max(1.5),
   platform: platformSchema.optional(),
 });
+
+/**
+ * Migrates legacy persisted platform ids (e.g. `"android"` → `"mobile"`).
+ *
+ * @param raw - Parsed localStorage JSON before schema validation.
+ */
+export function migratePersistedSettings(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return raw;
+  }
+
+  const record = { ...(raw as Record<string, unknown>) };
+  if (record.platform === "android") {
+    record.platform = "mobile";
+  }
+  return record;
+}
 
 export type GameSettings = z.infer<typeof gameSettingsSchema>;
 
@@ -68,6 +85,9 @@ export const BASE_LIGHTING = {
 
 /**
  * Loads persisted settings from localStorage, falling back to defaults.
+ *
+ * Migrates legacy `"android"` platform values to `"mobile"` so existing
+ * installs keep touch controls without re-picking a platform.
  */
 export function loadGameSettings(): GameSettings {
   if (typeof window === "undefined") return DEFAULT_GAME_SETTINGS;
@@ -75,7 +95,21 @@ export function loadGameSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
     if (!raw) return DEFAULT_GAME_SETTINGS;
-    return gameSettingsSchema.parse(JSON.parse(raw));
+
+    const parsedUnknown: unknown = JSON.parse(raw);
+    const needsPlatformMigration =
+      typeof parsedUnknown === "object" &&
+      parsedUnknown !== null &&
+      "platform" in parsedUnknown &&
+      (parsedUnknown as { platform?: unknown }).platform === "android";
+
+    const settings = gameSettingsSchema.parse(migratePersistedSettings(parsedUnknown));
+
+    if (needsPlatformMigration) {
+      saveGameSettings(settings);
+    }
+
+    return settings;
   } catch {
     return DEFAULT_GAME_SETTINGS;
   }
@@ -158,5 +192,5 @@ export function getMapSizeLabel(mapSize: MapSize): string {
  * @param platform - Selected platform id.
  */
 export function getPlatformLabel(platform: Platform): string {
-  return platform === "android" ? "Android touch" : "Computer";
+  return platform === "mobile" ? "Mobile touch" : "Computer";
 }

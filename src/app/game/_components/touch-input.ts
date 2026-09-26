@@ -12,7 +12,7 @@ export type TouchInputState = {
   fireHeld: boolean;
 };
 
-/** Shared touch input consumed each frame by {@link Player} in Android mode. */
+/** Shared touch input consumed each frame by {@link Player} in mobile mode. */
 export const touchInputState: TouchInputState = {
   move: { x: 0, z: 0 },
   lookDeltaYaw: 0,
